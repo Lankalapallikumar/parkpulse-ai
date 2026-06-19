@@ -1,0 +1,8 @@
+pandas==2.2.2
+scikit-learn==1.5.0
+folium==0.16.0
+plotly==5.22.0
+streamlit==1.35.0
+hypothesis==6.103.0
+pytest==8.2.0
+numpy==1.26.4

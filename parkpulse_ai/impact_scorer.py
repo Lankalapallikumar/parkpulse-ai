@@ -34,14 +34,12 @@ Risk level thresholds
 Single-zone edge case: traffic_impact_score = 50.0 (min-max undefined with one zone).
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-_PEAK_HOURS: frozenset[int] = frozenset({0, 1, 2, 3, 4, 5, 19, 20, 21})
+_PEAK_HOURS: frozenset = frozenset({0, 1, 2, 3, 4, 5, 19, 20, 21})
 
 _VEHICLE_WEIGHT_MAP: dict[str, float] = {
     "TRUCK": 3.0,

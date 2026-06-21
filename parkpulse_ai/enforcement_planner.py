@@ -27,6 +27,8 @@ Edge cases
 - Input scored_df must contain: zone, risk_level, traffic_impact_score, violation_count.
 """
 
+from __future__ import annotations
+
 import pandas as pd
 
 # ---------------------------------------------------------------------------

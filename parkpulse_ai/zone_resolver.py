@@ -8,6 +8,8 @@ Resolution priority per record:
 4. "Zone {round(lat,2)}_{round(lon,2)}" → zone_source = "coordinate_bin"
 """
 
+from __future__ import annotations
+
 import math
 import numpy as np
 import pandas as pd

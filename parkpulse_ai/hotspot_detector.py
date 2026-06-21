@@ -9,6 +9,8 @@ DBSCAN configuration:
 - cluster_id = -1 indicates noise (not part of any dense cluster)
 """
 
+from __future__ import annotations
+
 import warnings
 
 import folium

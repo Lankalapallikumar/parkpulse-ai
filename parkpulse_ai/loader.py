@@ -4,6 +4,8 @@ Loader module for ParkPulse AI.
 Reads and validates the Bangalore parking violation CSV into a clean DataFrame.
 """
 
+from __future__ import annotations
+
 import os
 import logging
 from typing import Tuple

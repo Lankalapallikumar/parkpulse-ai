@@ -524,5 +524,9 @@ def main() -> None:
             st.info("Upload a CSV and click **Run Analysis** to use the What-If Simulator.")
 
 
-if __name__ == "__main__":
+try:
     main()
+except Exception as _e:
+    import traceback
+    st.error(f"App startup error: {_e}")
+    st.code(traceback.format_exc())

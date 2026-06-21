@@ -151,33 +151,40 @@ def resolve_zones(df: pd.DataFrame) -> pd.DataFrame:
     remaining_mask = ~junction_mask
 
     if remaining_mask.any() and centroids:
-        # Fully vectorised proximity search using numpy broadcasting.
+        # Chunked vectorised proximity search — processes CHUNK_SIZE rows at a
+        # time to keep peak RAM under ~200 MB on Streamlit Cloud free tier.
+        CHUNK_SIZE = 5000
+
         centroid_names = list(centroids.keys())
         centroid_lats = np.radians(np.array([centroids[n][0] for n in centroid_names]))
         centroid_lons = np.radians(np.array([centroids[n][1] for n in centroid_names]))
 
-        remaining_indices = df.index[remaining_mask]
+        remaining_indices = df.index[remaining_mask].tolist()
         rem_lats_deg = df.loc[remaining_indices, "latitude"].values.astype(float)
         rem_lons_deg = df.loc[remaining_indices, "longitude"].values.astype(float)
-        rem_lats = np.radians(rem_lats_deg)
-        rem_lons = np.radians(rem_lons_deg)
+        loc_values   = df.loc[remaining_indices, "location"].values
 
-        # Broadcast haversine: shape (n_remaining, n_centroids)
-        dlat = rem_lats[:, None] - centroid_lats[None, :]
-        dlon = rem_lons[:, None] - centroid_lons[None, :]
-        a = np.sin(dlat / 2) ** 2 + (
-            np.cos(rem_lats[:, None]) * np.cos(centroid_lats[None, :]) * np.sin(dlon / 2) ** 2
-        )
-        dist_matrix = 2 * 6371.0 * np.arcsin(np.sqrt(np.clip(a, 0, 1)))  # km, shape (n_rem, n_cent)
+        n = len(remaining_indices)
+        nearest_idx_all = np.empty(n, dtype=np.intp)
+        min_dists_all   = np.empty(n, dtype=np.float64)
 
-        nearest_idx = np.argmin(dist_matrix, axis=1)   # index of nearest centroid per row
-        min_dists = dist_matrix[np.arange(len(nearest_idx)), nearest_idx]
+        for start in range(0, n, CHUNK_SIZE):
+            end = min(start + CHUNK_SIZE, n)
+            rlat = np.radians(rem_lats_deg[start:end])
+            rlon = np.radians(rem_lons_deg[start:end])
+            dlat = rlat[:, None] - centroid_lats[None, :]
+            dlon = rlon[:, None] - centroid_lons[None, :]
+            a = np.sin(dlat / 2) ** 2 + (
+                np.cos(rlat[:, None]) * np.cos(centroid_lats[None, :]) * np.sin(dlon / 2) ** 2
+            )
+            dist_chunk = 2 * 6371.0 * np.arcsin(np.sqrt(np.clip(a, 0, 1)))
+            nearest_idx_all[start:end] = np.argmin(dist_chunk, axis=1)
+            min_dists_all[start:end]   = dist_chunk[np.arange(end - start), nearest_idx_all[start:end]]
 
-        # Get location values for fallback
-        loc_values = df.loc[remaining_indices, "location"].values
-
+        pos_lookup = {orig_idx: i for i, orig_idx in enumerate(remaining_indices)}
         for i, (orig_idx, row_lat, row_lon, min_dist, c_idx, loc_val) in enumerate(
-            zip(remaining_indices, rem_lats_deg, rem_lons_deg, min_dists, nearest_idx, loc_values)
+            zip(remaining_indices, rem_lats_deg, rem_lons_deg,
+                min_dists_all, nearest_idx_all, loc_values)
         ):
             pos = df.index.get_loc(orig_idx)
             if min_dist <= 0.5:
@@ -189,9 +196,7 @@ def resolve_zones(df: pd.DataFrame) -> pd.DataFrame:
                     zones[pos] = token
                     sources[pos] = "location_text"
                 else:
-                    lat_bin = round(float(row_lat), 2)
-                    lon_bin = round(float(row_lon), 2)
-                    zones[pos] = f"Zone {lat_bin}_{lon_bin}"
+                    zones[pos] = f"Zone {round(float(row_lat), 2)}_{round(float(row_lon), 2)}"
                     sources[pos] = "coordinate_bin"
 
     elif remaining_mask.any():

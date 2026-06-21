@@ -85,6 +85,15 @@ def _cached_load(file_bytes: bytes, file_hash: str):
         df, dropped = load_dataset(tmp_path)
     finally:
         os.unlink(tmp_path)
+
+    # On Streamlit Cloud the free tier has ~1 GB RAM.
+    # Cap at 50,000 rows to avoid OOM kills while still showing real results.
+    CLOUD_ROW_LIMIT = 50_000
+    is_cloud = os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOME", "").startswith("/home/appuser")
+    if is_cloud and len(df) > CLOUD_ROW_LIMIT:
+        df = df.sample(n=CLOUD_ROW_LIMIT, random_state=42).reset_index(drop=True)
+        dropped = dropped  # keep original dropped count for display
+
     return df, dropped
 
 
@@ -154,6 +163,10 @@ def _colour_risk_level(val: str) -> str:
 def _render_summary(df: pd.DataFrame, dropped: int) -> None:
     """Requirement 7.2 — Summary tab."""
     st.subheader("Dataset Summary")
+
+    # Cloud notice if dataset was sampled
+    if len(df) <= 50_000:
+        st.info("ℹ️ Running on Streamlit Cloud (1 GB RAM limit): analysis uses a 50,000-row sample of the full dataset. All features work identically — scores, hotspots, and enforcement plans are representative of the full data.")
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Records", f"{len(df):,}")

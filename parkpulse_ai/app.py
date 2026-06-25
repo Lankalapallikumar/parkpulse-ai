@@ -1,7 +1,6 @@
 """
 ParkPulse AI — Streamlit Dashboard
 """
-
 from __future__ import annotations
 
 import hashlib
